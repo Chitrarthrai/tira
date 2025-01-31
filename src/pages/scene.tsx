@@ -56,6 +56,7 @@ interface ControlsPanelProps {
   onZoomOut: () => void;
   onResetView: () => void;
   onSave: () => void;
+  onDelete: () => void;
 }
 
 const ControlsPanel: React.FC<ControlsPanelProps> = ({
@@ -63,6 +64,7 @@ const ControlsPanel: React.FC<ControlsPanelProps> = ({
   onZoomOut,
   onResetView,
   onSave,
+  onDelete,
 }) => {
   return (
     <div className="absolute bottom-4 right-4 flex gap-2">
@@ -134,6 +136,26 @@ const ControlsPanel: React.FC<ControlsPanelProps> = ({
             <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
             <polyline points="17 21 17 13 7 13 7 21" />
             <polyline points="7 3 7 8 15 8" />
+          </svg>
+        </Button>
+      </Tooltip>
+      <Tooltip content="Delete All">
+        <Button onClick={onDelete}>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="24"
+            height="24"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round">
+            <path d="M3 6h18" />
+            <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+            <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+            <line x1="10" y1="11" x2="10" y2="17" />
+            <line x1="14" y1="11" x2="14" y2="17" />
           </svg>
         </Button>
       </Tooltip>
@@ -274,6 +296,18 @@ const Scene: React.FC = () => {
       alert("Scene saved successfully!");
     }
   };
+  const handleDelete = () => {
+    if (
+      confirm(
+        "Are you sure you want to delete all models? This cannot be undone."
+      )
+    ) {
+      localStorage.removeItem("shelfScene");
+      setSavedState([]);
+      // Reload the page to reset everything
+      window.location.reload();
+    }
+  };
 
   return (
     <div
@@ -286,6 +320,7 @@ const Scene: React.FC = () => {
             selectedShelfUrl={selectedShelfUrl}
             onControlsReady={setControlsRef}
             savedState={savedState}
+            onClearModels={() => setSavedState([])} // Pass clear function to child
           />
         </Suspense>
       </Canvas>
@@ -294,6 +329,7 @@ const Scene: React.FC = () => {
         onZoomOut={handleZoomOut}
         onResetView={handleResetView}
         onSave={handleSave}
+        onDelete={handleDelete}
       />
     </div>
   );

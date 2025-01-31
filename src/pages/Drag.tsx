@@ -12,15 +12,17 @@ import { DroppedModel, SavedModelState } from "./types";
 
 // Props interface defines what the component expects to receive from its parent
 interface Props {
-  selectedShelfUrl: string | null; // URL of the currently selected shelf model
-  onControlsReady: (controlsRef: any) => void; // Callback to pass controls to parent
-  savedState: SavedModelState[]; // Array of previously saved models and their states
+  selectedShelfUrl: string | null;
+  onControlsReady: (controlsRef: any) => void;
+  savedState: SavedModelState[];
+  onClearModels: () => void; // New prop for clearing models
 }
 
 const ShelfWithDragDrop: React.FC<Props> = ({
   selectedShelfUrl,
   onControlsReady,
   savedState,
+  onClearModels,
 }) => {
   // State for tracking all models in the scene
   const [droppedModels, setDroppedModels] = useState<DroppedModel[]>([]);
@@ -39,6 +41,11 @@ const ShelfWithDragDrop: React.FC<Props> = ({
   const mousePosition = useRef(new THREE.Vector2());
   const intersectionPoint = useRef(new THREE.Vector3());
 
+  useEffect(() => {
+    if (savedState.length === 0) {
+      setDroppedModels([]);
+    }
+  }, [savedState]);
   // Pass control references back to parent component
   useEffect(() => {
     onControlsReady({
