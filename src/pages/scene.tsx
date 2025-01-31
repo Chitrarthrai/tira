@@ -3,6 +3,7 @@ import { Canvas } from "@react-three/fiber";
 import { Suspense } from "react";
 import { useDrag, useDrop } from "react-dnd";
 import ShelfWithDragDrop from "./Drag";
+import { SavedModelState } from "./types";
 
 // Types
 interface Shelf {
@@ -54,12 +55,14 @@ interface ControlsPanelProps {
   onZoomIn: () => void;
   onZoomOut: () => void;
   onResetView: () => void;
+  onSave: () => void;
 }
 
 const ControlsPanel: React.FC<ControlsPanelProps> = ({
   onZoomIn,
   onZoomOut,
   onResetView,
+  onSave,
 }) => {
   return (
     <div className="absolute bottom-4 right-4 flex gap-2">
@@ -116,10 +119,27 @@ const ControlsPanel: React.FC<ControlsPanelProps> = ({
           </svg>
         </Button>
       </Tooltip>
+      <Tooltip content="Save Scene">
+        <Button onClick={onSave}>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="24"
+            height="24"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round">
+            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+            <polyline points="17 21 17 13 7 13 7 21" />
+            <polyline points="7 3 7 8 15 8" />
+          </svg>
+        </Button>
+      </Tooltip>
     </div>
   );
 };
-
 
 interface DraggableShelfProps {
   shelf: Shelf;
@@ -147,16 +167,15 @@ const DraggableShelf: React.FC<DraggableShelfProps> = ({
 
   return (
     <div
-    ref={drag}
-    className={`cursor-pointer text-center flex flex-col items-center space-y-2 p-3 w-24 rounded-xl border border-gray-600 bg-gray-700 shadow-md transition-all duration-300 
+      ref={drag}
+      className={`cursor-pointer text-center flex flex-col items-center space-y-2 p-3 w-24 rounded-xl border border-gray-600 bg-gray-700 shadow-md transition-all duration-300 
       ${isDragging ? "opacity-50" : "opacity-100"} 
-      hover:shadow-2xl hover:scale-105 hover:border-blue-400 hover:bg-gray-600`}
-      >
+      hover:shadow-2xl hover:scale-105 hover:border-blue-400 hover:bg-gray-600`}>
       <img
         src={shelf.preview}
         alt={`Shelf ${shelf.id} Preview`}
         className="w-20 h-20 object-cover rounded-lg"
-        />
+      />
       <span className="text-sm text-gray-300 font-medium">{`Shelf ${shelf.id}`}</span>
     </div>
   );
@@ -167,16 +186,36 @@ const Header: React.FC<{ onSelectShelf: (url: string) => void }> = ({
   onSelectShelf,
 }) => {
   const shelves: Shelf[] = [
-    { id: 2, url: "https://storage.googleapis.com/3dmodelhost/Shelves/SHELF_2.glb", preview: "/preview/p1.png" },
-    { id: 3, url: "https://storage.googleapis.com/3dmodelhost/Shelves/SHELF_3.glb", preview: "/preview/p2.png" },
-    { id: 4, url: "https://storage.googleapis.com/3dmodelhost/Shelves/SHELF_4.glb", preview: "/preview/p3.png" },
-    { id: 5, url: "https://storage.googleapis.com/3dmodelhost/Shelves/SHELF_5.glb", preview: "/preview/p4.png" },
+    {
+      id: 2,
+      url: "https://storage.googleapis.com/3dmodelhost/Shelves/SHELF_2.glb",
+      preview: "/preview/p1.png",
+    },
+    {
+      id: 3,
+      url: "https://storage.googleapis.com/3dmodelhost/Shelves/SHELF_3.glb",
+      preview: "/preview/p2.png",
+    },
+    {
+      id: 4,
+      url: "https://storage.googleapis.com/3dmodelhost/Shelves/SHELF_4.glb",
+      preview: "/preview/p3.png",
+    },
+    {
+      id: 5,
+      url: "https://storage.googleapis.com/3dmodelhost/Shelves/SHELF_5.glb",
+      preview: "/preview/p4.png",
+    },
   ];
 
   return (
     <div className="absolute top-0 left-0 right-0 py-3 bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 shadow-lg z-50 flex gap-6 justify-center items-center rounded-b-2xl">
       {shelves.map((shelf) => (
-        <DraggableShelf key={shelf.id} shelf={shelf} onSelectShelf={onSelectShelf} />
+        <DraggableShelf
+          key={shelf.id}
+          shelf={shelf}
+          onSelectShelf={onSelectShelf}
+        />
       ))}
     </div>
   );
@@ -184,9 +223,19 @@ const Header: React.FC<{ onSelectShelf: (url: string) => void }> = ({
 
 // Main Scene Component
 const Scene: React.FC = () => {
-  const [selectedShelfUrl, setSelectedShelfUrl] = useState<string>("https://storage.googleapis.com/3dmodelhost/Shelves/SHELF_1.glb");
+  const [selectedShelfUrl, setSelectedShelfUrl] = useState<string>(
+    "https://storage.googleapis.com/3dmodelhost/Shelves/SHELF_1.glb"
+  );
   const [controlsRef, setControlsRef] = useState<any>(null);
+  const [savedState, setSavedState] = useState<SavedModelState[]>([]);
 
+  // Load saved state on initial render
+  useEffect(() => {
+    const savedData = localStorage.getItem("shelfScene");
+    if (savedData) {
+      setSavedState(JSON.parse(savedData));
+    }
+  }, []);
   // Effect to update model in real time whenever shelf URL changes
   useEffect(() => {
     if (selectedShelfUrl) {
@@ -197,7 +246,7 @@ const Scene: React.FC = () => {
   const [, drop] = useDrop(() => ({
     accept: "shelf",
     drop: (item: { url: string }) => {
-      setSelectedShelfUrl(item.url);  // Update selected shelf URL in real-time
+      setSelectedShelfUrl(item.url); // Update selected shelf URL in real-time
     },
   }));
 
@@ -218,20 +267,34 @@ const Scene: React.FC = () => {
       controlsRef.reset();
     }
   };
+  const handleSave = () => {
+    const sceneState = localStorage.getItem("shelfScene");
+    if (sceneState) {
+      // Show success message
+      alert("Scene saved successfully!");
+    }
+  };
 
   return (
-    <div className="w-full h-screen relative bg-gradient-to-br from-gray-950 via-gray-900 to-gray-950" ref={drop}>
+    <div
+      className="w-full h-screen relative bg-gradient-to-br from-gray-950 via-gray-900 to-gray-950"
+      ref={drop}>
       <Header onSelectShelf={setSelectedShelfUrl} />
       <Canvas shadows>
         <Suspense fallback={null}>
-          {/* Ensure ShelfWithDragDrop gets the updated shelf URL */}
           <ShelfWithDragDrop
             selectedShelfUrl={selectedShelfUrl}
             onControlsReady={setControlsRef}
+            savedState={savedState}
           />
         </Suspense>
       </Canvas>
-      <ControlsPanel onZoomIn={handleZoomIn} onZoomOut={handleZoomOut} onResetView={handleResetView} />
+      <ControlsPanel
+        onZoomIn={handleZoomIn}
+        onZoomOut={handleZoomOut}
+        onResetView={handleResetView}
+        onSave={handleSave}
+      />
     </div>
   );
 };
