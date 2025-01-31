@@ -1,10 +1,8 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Canvas } from "@react-three/fiber";
 import { Suspense } from "react";
-import { DndProvider, useDrag, useDrop } from "react-dnd";
-import { HTML5Backend } from "react-dnd-html5-backend";
+import { useDrag, useDrop } from "react-dnd";
 import ShelfWithDragDrop from "./Drag";
-import { OrbitControls } from "@react-three/drei";
 
 // Types
 interface Shelf {
@@ -23,7 +21,7 @@ interface ButtonProps {
   children: React.ReactNode;
 }
 
-// Simple Tooltip component
+// Tooltip Component
 const Tooltip: React.FC<TooltipProps> = ({ children, content }) => {
   const [showTooltip, setShowTooltip] = useState(false);
 
@@ -42,7 +40,7 @@ const Tooltip: React.FC<TooltipProps> = ({ children, content }) => {
   );
 };
 
-// Custom Button component
+// Custom Button Component
 const Button: React.FC<ButtonProps> = ({ onClick, children }) => (
   <button
     onClick={onClick}
@@ -56,14 +54,12 @@ interface ControlsPanelProps {
   onZoomIn: () => void;
   onZoomOut: () => void;
   onResetView: () => void;
-  onToggleRotation: () => void;
 }
 
 const ControlsPanel: React.FC<ControlsPanelProps> = ({
   onZoomIn,
   onZoomOut,
   onResetView,
-  onToggleRotation,
 }) => {
   return (
     <div className="absolute bottom-4 right-4 flex gap-2">
@@ -120,78 +116,17 @@ const ControlsPanel: React.FC<ControlsPanelProps> = ({
           </svg>
         </Button>
       </Tooltip>
-      {/* <Tooltip content="Toggle 3D Model Rotation">
-        <Button onClick={onToggleRotation}>
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="24"
-            height="24"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round">
-            <path d="M16.466 7.5c-2.688-1.55-5.466-2.5-8.466-2.5-2.333 0-4 .667-5 2" />
-            <path d="M7.534 16.5c2.688 1.55 5.466 2.5 8.466 2.5 2.333 0 4-.667 5-2" />
-            <path d="M19.8 7.5c-1.1-1.333-2.567-2-4.4-2-2.333 0-4.667.667-7 2" />
-            <path d="M4.2 16.5c1.1 1.333 2.567 2 4.4 2 2.333 0 4.667-.667 7-2" />
-            <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z" />
-          </svg>
-        </Button>
-      </Tooltip> */}
     </div>
   );
 };
 
-// Header component
-interface HeaderProps {
-  onSelectShelf: (url: string) => void;
-}
 
-const Header: React.FC<HeaderProps> = ({ onSelectShelf }) => {
-  const shelves: Shelf[] = [
-    {
-      id: 2,
-      url: "https://storage.googleapis.com/3dmodelhost/Shelves/SHELF_2.glb",
-      preview: "/preview/p1.png",
-    },
-    {
-      id: 3,
-      url: "https://storage.googleapis.com/3dmodelhost/Shelves/SHELF_3.glb",
-      preview: "/preview/p2.png",
-    },
-    {
-      id: 4,
-      url: "https://storage.googleapis.com/3dmodelhost/Shelves/SHELF_4.glb",
-      preview: "/preview/p3.png",
-    },
-    {
-      id: 5,
-      url: "https://storage.googleapis.com/3dmodelhost/Shelves/SHELF_5.glb",
-      preview: "/preview/p4.png",
-    },
-  ];
-
-  return (
-    <div className="absolute top-0 left-0 right-0 py-3 bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 shadow-lg z-50 flex gap-6 justify-center items-center rounded-b-2xl">
-      {shelves.map((shelf) => (
-        <DraggableShelf
-          key={shelf.id}
-          shelf={shelf}
-          onSelectShelf={onSelectShelf}
-        />
-      ))}
-    </div>
-  );
-};
-
-// DraggableShelf component
 interface DraggableShelfProps {
   shelf: Shelf;
   onSelectShelf: (url: string) => void;
 }
 
+// Draggable Shelf Component
 const DraggableShelf: React.FC<DraggableShelfProps> = ({
   shelf,
   onSelectShelf,
@@ -204,32 +139,65 @@ const DraggableShelf: React.FC<DraggableShelfProps> = ({
     }),
   }));
 
+  useEffect(() => {
+    if (isDragging) {
+      onSelectShelf(shelf.url);
+    }
+  }, [isDragging, shelf.url, onSelectShelf]);
+
   return (
     <div
-      ref={drag}
-      className={`cursor-pointer text-center flex flex-col items-center space-y-2 p-3 w-24 rounded-xl border border-gray-600 bg-gray-700 shadow-md transition-all duration-300 
+    ref={drag}
+    className={`cursor-pointer text-center flex flex-col items-center space-y-2 p-3 w-24 rounded-xl border border-gray-600 bg-gray-700 shadow-md transition-all duration-300 
       ${isDragging ? "opacity-50" : "opacity-100"} 
       hover:shadow-2xl hover:scale-105 hover:border-blue-400 hover:bg-gray-600`}
-      onClick={() => onSelectShelf(shelf.url)}>
+      >
       <img
         src={shelf.preview}
         alt={`Shelf ${shelf.id} Preview`}
         className="w-20 h-20 object-cover rounded-lg"
-      />
+        />
       <span className="text-sm text-gray-300 font-medium">{`Shelf ${shelf.id}`}</span>
     </div>
   );
 };
 
-// Main Scene component
+// Header Component
+const Header: React.FC<{ onSelectShelf: (url: string) => void }> = ({
+  onSelectShelf,
+}) => {
+  const shelves: Shelf[] = [
+    { id: 2, url: "https://storage.googleapis.com/3dmodelhost/Shelves/SHELF_2.glb", preview: "/preview/p1.png" },
+    { id: 3, url: "https://storage.googleapis.com/3dmodelhost/Shelves/SHELF_3.glb", preview: "/preview/p2.png" },
+    { id: 4, url: "https://storage.googleapis.com/3dmodelhost/Shelves/SHELF_4.glb", preview: "/preview/p3.png" },
+    { id: 5, url: "https://storage.googleapis.com/3dmodelhost/Shelves/SHELF_5.glb", preview: "/preview/p4.png" },
+  ];
+
+  return (
+    <div className="absolute top-0 left-0 right-0 py-3 bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 shadow-lg z-50 flex gap-6 justify-center items-center rounded-b-2xl">
+      {shelves.map((shelf) => (
+        <DraggableShelf key={shelf.id} shelf={shelf} onSelectShelf={onSelectShelf} />
+      ))}
+    </div>
+  );
+};
+
+// Main Scene Component
 const Scene: React.FC = () => {
-  const [selectedShelves, setSelectedShelves] = useState<string[]>([]);
+  const [selectedShelfUrl, setSelectedShelfUrl] = useState<string>("https://storage.googleapis.com/3dmodelhost/Shelves/SHELF_1.glb");
   const [controlsRef, setControlsRef] = useState<any>(null);
+
+  // Effect to update model in real time whenever shelf URL changes
+  useEffect(() => {
+    if (selectedShelfUrl) {
+      console.log("Model URL changed:", selectedShelfUrl);
+    }
+  }, [selectedShelfUrl]);
 
   const [, drop] = useDrop(() => ({
     accept: "shelf",
     drop: (item: { url: string }) => {
-      setSelectedShelves((prevShelves) => [...prevShelves, item.url]);
+      setSelectedShelfUrl(item.url);  // Update selected shelf URL in real-time
     },
   }));
 
@@ -251,37 +219,19 @@ const Scene: React.FC = () => {
     }
   };
 
-  const handleToggleRotation = () => {
-    if (controlsRef) {
-      controlsRef.toggleRotation();
-    }
-  };
-
   return (
-    <div
-      className="w-full h-screen relative bg-gradient-to-br from-gray-950 via-gray-900 to-gray-950"
-      ref={drop}>
-      <Header
-        onSelectShelf={(url) => setSelectedShelves((prev) => [...prev, url])}
-      />
+    <div className="w-full h-screen relative bg-gradient-to-br from-gray-950 via-gray-900 to-gray-950" ref={drop}>
+      <Header onSelectShelf={setSelectedShelfUrl} />
       <Canvas shadows>
         <Suspense fallback={null}>
-          {selectedShelves.map((shelfUrl, index) => (
-            <ShelfWithDragDrop
-              key={index}
-              selectedShelfUrl={shelfUrl}
-              onControlsReady={setControlsRef}
-            />
-          ))}
+          {/* Ensure ShelfWithDragDrop gets the updated shelf URL */}
+          <ShelfWithDragDrop
+            selectedShelfUrl={selectedShelfUrl}
+            onControlsReady={setControlsRef}
+          />
         </Suspense>
-        {/* <OrbitControls /> */}
       </Canvas>
-      <ControlsPanel
-        onZoomIn={handleZoomIn}
-        onZoomOut={handleZoomOut}
-        onResetView={handleResetView}
-        onToggleRotation={handleToggleRotation}
-      />
+      <ControlsPanel onZoomIn={handleZoomIn} onZoomOut={handleZoomOut} onResetView={handleResetView} />
     </div>
   );
 };
