@@ -321,6 +321,7 @@ const Scene: React.FC = () => {
             onControlsReady={setControlsRef}
             savedState={savedState}
             onClearModels={() => setSavedState([])} // Pass clear function to child
+            userId="123user"
           />
         </Suspense>
       </Canvas>
