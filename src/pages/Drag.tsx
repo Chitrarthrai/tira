@@ -10,43 +10,101 @@ import {
 import * as THREE from "three";
 import { DroppedModel, SavedModelState } from "./types";
 
-// Props interface defines what the component expects to receive from its parent
 interface Props {
   selectedShelfUrl: string | null;
   onControlsReady: (controlsRef: any) => void;
   savedState: SavedModelState[];
-  onClearModels: () => void; // New prop for clearing models
+  onClearModels: () => void;
 }
+
+const ModelController = React.memo(({
+  model,
+  id,
+  transformMode,
+  camera,
+  onTransformChange,
+  enforceGroundLimit,
+  orbitControlsRef,
+}: {
+  model: THREE.Object3D;
+  id: number;
+  transformMode: "translate" | "rotateX" | "rotateY" | "rotateZ";
+  camera: THREE.Camera;
+  onTransformChange: (id: number) => void;
+  enforceGroundLimit: (model: THREE.Object3D) => void;
+  orbitControlsRef: React.MutableRefObject<any>;
+}) => {
+  return (
+    <TransformControls
+      object={model}
+      mode={transformMode === "translate" ? "translate" : "rotate"}
+      rotationSnap={transformMode.startsWith("rotate") ? Math.PI / 180 : undefined}
+      showX={transformMode === "translate" || transformMode === "rotateX"}
+      showY={transformMode === "translate" || transformMode === "rotateY"}
+      showZ={transformMode === "translate" || transformMode === "rotateZ"}
+      onMouseDown={() => {
+        if (orbitControlsRef.current) orbitControlsRef.current.enabled = false;
+      }}
+      onMouseUp={() => {
+        if (orbitControlsRef.current) orbitControlsRef.current.enabled = true;
+        enforceGroundLimit(model);
+        onTransformChange(id); // State update triggered here
+      }}
+      camera={camera}
+    >
+      <primitive object={model} castShadow />
+    </TransformControls>
+  );
+});
 
 const ShelfWithDragDrop: React.FC<Props> = ({
   selectedShelfUrl,
   onControlsReady,
   savedState,
-  onClearModels,
 }) => {
-  // State for tracking all models in the scene
   const [droppedModels, setDroppedModels] = useState<DroppedModel[]>([]);
-
-  // State for controlling transform mode (move or rotate)
   const [transformMode, setTransformMode] = useState<
     "translate" | "rotateX" | "rotateY" | "rotateZ"
   >("translate");
 
-  // Refs for Three.js objects and controls
   const orbitControlsRef = useRef<any>(null);
-  const transformControlsRef = useRef<any>(null);
-  const { camera, gl } = useThree(); // Get Three.js context
+  const { camera, gl } = useThree();
   const plane = useRef(new THREE.Plane(new THREE.Vector3(0, 1, 0), 0));
   const raycaster = useRef(new THREE.Raycaster());
   const mousePosition = useRef(new THREE.Vector2());
   const intersectionPoint = useRef(new THREE.Vector3());
+  const modelIdCounter = useRef(0);
+
+  const handleTransformChange = useCallback((id: number) => {
+    setDroppedModels(prevModels =>
+      prevModels.map(model => {
+        if (model.id === id) {
+          // Capture current position/rotation from Three.js object
+          return {
+            ...model,
+            position: [
+              model.model.position.x,
+              model.model.position.y,
+              model.model.position.z,
+            ],
+            rotation: [
+              model.model.rotation.x,
+              model.model.rotation.y,
+              model.model.rotation.z,
+            ],
+          };
+        }
+        return model;
+      })
+    );
+  }, []);
 
   useEffect(() => {
     if (savedState.length === 0) {
       setDroppedModels([]);
     }
   }, [savedState]);
-  // Pass control references back to parent component
+
   useEffect(() => {
     onControlsReady({
       zoom: (factor: number) => {
@@ -61,7 +119,6 @@ const ShelfWithDragDrop: React.FC<Props> = ({
     });
   }, [camera, onControlsReady]);
 
-  // Load initial base shelf model
   useEffect(() => {
     const dracoLoader = new DRACOLoader();
     dracoLoader.setDecoderPath(
@@ -71,22 +128,19 @@ const ShelfWithDragDrop: React.FC<Props> = ({
     const gltfLoader = new GLTFLoader();
     gltfLoader.setDRACOLoader(dracoLoader);
 
-    // Load base model if no saved state exists
     if (savedState.length === 0) {
       gltfLoader.load(
         "https://storage.googleapis.com/3dmodelhost/Shelves/SHELF_1.glb",
         (gltf) => {
           setDroppedModels([
             {
-              id: Date.now(),
+              id: modelIdCounter.current++,
               model: gltf.scene,
               position: [0, 0, 0],
               rotation: [0, 0, 0],
               url: "https://storage.googleapis.com/3dmodelhost/Shelves/SHELF_1.glb",
             },
           ]);
-          // Remove this line since we're not using it:
-          // setShelfModelLoaded(true);
         },
         undefined,
         (error) => console.error("Error loading base model:", error)
@@ -98,7 +152,6 @@ const ShelfWithDragDrop: React.FC<Props> = ({
     };
   }, [savedState]);
 
-  // Load saved models when savedState changes
   useEffect(() => {
     if (savedState.length > 0) {
       const dracoLoader = new DRACOLoader();
@@ -108,10 +161,8 @@ const ShelfWithDragDrop: React.FC<Props> = ({
       const gltfLoader = new GLTFLoader();
       gltfLoader.setDRACOLoader(dracoLoader);
 
-      // Clear existing models before loading saved ones
       setDroppedModels([]);
 
-      // Load each saved model
       savedState.forEach((savedModel) => {
         gltfLoader.load(
           savedModel.url,
@@ -123,7 +174,7 @@ const ShelfWithDragDrop: React.FC<Props> = ({
             setDroppedModels((prev) => [
               ...prev,
               {
-                id: savedModel.id,
+                id: modelIdCounter.current++,
                 model: model,
                 position: savedModel.position,
                 rotation: savedModel.rotation,
@@ -142,7 +193,6 @@ const ShelfWithDragDrop: React.FC<Props> = ({
     }
   }, [savedState]);
 
-  // Save state whenever models change
   useEffect(() => {
     if (droppedModels.length > 0) {
       const stateToSave = droppedModels.map((model) => ({
@@ -163,7 +213,6 @@ const ShelfWithDragDrop: React.FC<Props> = ({
     }
   }, [droppedModels]);
 
-  // Calculate drop position from mouse coordinates
   const getDropPosition = useCallback(
     (event: MouseEvent): [number, number, number] => {
       const rect = gl.domElement.getBoundingClientRect();
@@ -180,14 +229,13 @@ const ShelfWithDragDrop: React.FC<Props> = ({
 
       return [
         intersectionPoint.current.x,
-        0, // Keep y at 0 to ensure model stays on ground
+        0,
         intersectionPoint.current.z,
       ];
     },
     [camera, gl.domElement]
   );
 
-  // Handle drag and drop events
   useEffect(() => {
     const handleDrop = (event: DragEvent) => {
       event.preventDefault();
@@ -239,7 +287,6 @@ const ShelfWithDragDrop: React.FC<Props> = ({
     };
   }, [selectedShelfUrl, getDropPosition, gl.domElement]);
 
-  // Toggle between transform modes
   const toggleTransformMode = useCallback(() => {
     setTransformMode((prev) => {
       switch (prev) {
@@ -255,7 +302,6 @@ const ShelfWithDragDrop: React.FC<Props> = ({
     });
   }, []);
 
-  // Handle keyboard shortcuts
   useEffect(() => {
     const handleKeyPress = (event: KeyboardEvent) => {
       if (event.key === "r" || event.key === "R") {
@@ -267,7 +313,6 @@ const ShelfWithDragDrop: React.FC<Props> = ({
     return () => window.removeEventListener("keydown", handleKeyPress);
   }, [toggleTransformMode]);
 
-  // Prevent models from going below ground level
   const enforceGroundLimit = useCallback((model: THREE.Object3D) => {
     const box = new THREE.Box3().setFromObject(model);
     const bottomY = box.min.y;
@@ -288,26 +333,17 @@ const ShelfWithDragDrop: React.FC<Props> = ({
       <directionalLight position={[5, 5, 5]} intensity={1} castShadow />
 
       {droppedModels.map(({ id, model }) => (
-        <TransformControls
-          key={id}
-          ref={transformControlsRef}
-          object={model}
-          mode={transformMode === "translate" ? "translate" : "rotate"}
-          rotationSnap={
-            transformMode.startsWith("rotate") ? Math.PI / 180 : undefined
-          }
-          showX={transformMode === "translate" || transformMode === "rotateX"}
-          showY={transformMode === "translate" || transformMode === "rotateY"}
-          showZ={transformMode === "translate" || transformMode === "rotateZ"}
-          onMouseDown={() => (orbitControlsRef.current.enabled = false)}
-          onMouseUp={() => {
-            orbitControlsRef.current.enabled = true;
-            enforceGroundLimit(model);
-          }}
-          camera={camera}>
-          <primitive object={model} castShadow />
-        </TransformControls>
-      ))}
+      <ModelController
+        key={id}
+        id={id}
+        model={model}  // Corrected prop passing
+        transformMode={transformMode}
+        camera={camera}
+        onTransformChange={handleTransformChange}
+        enforceGroundLimit={enforceGroundLimit}
+        orbitControlsRef={orbitControlsRef}
+      />
+    ))}
 
       <gridHelper args={[10, 10]} />
     </>
